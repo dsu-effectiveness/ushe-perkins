@@ -27,7 +27,7 @@ SELECT pa_year,
        pa_single_parent
   FROM perkins_participants_1920;
 
-/* Run Updates to populate missing columns */
+/* Economically Disadvantaged */
 
 UPDATE perkins_participants_1920
    SET pa_economically_disadvantaged = '1'
@@ -41,6 +41,7 @@ UPDATE perkins_participants_1920
                            AND (UPPER(a.tbraccd_desc) LIKE '%WORKFORCE%' OR a.tbraccd_detail_code IN 'PELL')
                            AND a.tbraccd_amount > 0);
 
+/* ELL */
 UPDATE perkins_participants_1920
    SET pa_ell = '1'
  WHERE pa_banner_id IN (SELECT b.spriden_id
@@ -58,11 +59,7 @@ UPDATE perkins_participants_1920
                                 'DSL1', 'DSL2', 'DSL3', 'IBTL', 'IBTR', 'IBTS', 'IBTT', 'IBTW')
                            AND b.spriden_change_ind IS NULL);
 
-/*********************************************************************
-  PA_DISABLED
-  INSERT HERE
-  *******************************************************************/
-
+/* Single Parent */
 UPDATE perkins_participants_1920
    SET pa_single_parent = '1'
  WHERE pa_banner_id IN (SELECT c.spriden_id
@@ -80,45 +77,22 @@ UPDATE perkins_participants_1920
                            AND a.rcrapp1_mrtl_status IN ('1', '3')
                            AND c.spriden_change_ind IS NULL);
 
-/* Need to review this */
+/* Pell Amount */
 UPDATE perkins_participants_1920 a
    SET pa_pell_amount = (SELECT SUM(a1.tbraccd_amount)
                            FROM tbraccd@proddb a1
-                                LEFT JOIN sfbetrm@proddb b2
-                                          ON b2.sfbetrm_pidm = a1.tbraccd_pidm
-                                LEFT JOIN spriden@proddb c2
-                                          ON c2.spriden_pidm = a1.tbraccd_pidm
-                          WHERE c2.spriden_id = a.pa_banner_id
+                                LEFT JOIN sfbetrm@proddb b1
+                                          ON b1.sfbetrm_pidm = a1.tbraccd_pidm
+                                LEFT JOIN spriden@proddb c1
+                                          ON c1.spriden_pidm = a1.tbraccd_pidm
+                          WHERE c1.spriden_id = a.pa_banner_id
                             AND a1.tbraccd_detail_code = 'PELL'
-                            --AND p_time_status_3 IN ('FT', '3Q', 'HT')
-                            AND b2.sfbetrm_ests_code = 'EL'
-                            AND b2.sfbetrm_tmst_code != '00'
+                            AND b1.sfbetrm_ests_code = 'EL'
+                            AND b1.sfbetrm_tmst_code != '00'
                             AND a1.tbraccd_term_code IN ('201930', '201940', '202020')
-                            AND c2.spriden_change_ind IS NULL)
- WHERE pa_pell_amount IS NOT NULL;
+                            AND c1.spriden_change_ind IS NULL);;
 
-SELECT SUM(a1.tbraccd_amount),
-       tbraccd_pidm
-  FROM tbraccd@proddb a1
-       LEFT JOIN sfbetrm@proddb b2
-                 ON b2.sfbetrm_pidm = a1.tbraccd_pidm
-       LEFT JOIN spriden@proddb c2
-                 ON c2.spriden_pidm = a1.tbraccd_pidm
- WHERE a1.tbraccd_detail_code = 'PELL'
-   --AND p_time_status_3 IN ('FT', '3Q', 'HT')
-   AND b2.sfbetrm_ests_code = 'EL'
-   AND b2.sfbetrm_tmst_code != '00'
-   AND a1.tbraccd_term_code IN ('201930', '201940', '202020')
-   AND c2.spriden_change_ind IS NULL
-   AND spriden_id IN (SELECT pa_banner_id
-                        FROM perkins_participants_1920)
- GROUP BY tbraccd_pidm;
-
-/*
- pa_bia
- */
-
-
+/* BIA */
 UPDATE perkins_participants_1920
    SET pa_bia = '1'
  WHERE pa_bia IS NULL
@@ -139,6 +113,7 @@ UPDATE perkins_participants_1920
                                    AND tbraccd_amount > 0
                                    AND tbraccd_term_code IN ('201930', '201940', '202020')));
 
+/* BIA Amount */
 UPDATE perkins_participants_1920
    SET pa_bia_amount = (SELECT sum(tbraccd_amount)
                       FROM tbraccd@proddb a
@@ -152,13 +127,14 @@ UPDATE perkins_participants_1920
 
 
 /*
-   Disabled Students
+   Disabled
    Need to get a list of disabled students from disability services.  Import into disab_students on PROD
  */
-
 UPDATE perkins_participants_1920
 SET pa_disabled = 1
 WHERE pa_banner_id IN (SELECT DISTINCT drc_banner_id FROM disab_students@proddb WHERE drc_term_code IN ('201930', '201940', '202020'));
+
+COMMIT;
 
 SELECT *
 FROM perkins_participants_1920;
