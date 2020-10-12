@@ -138,3 +138,4 @@ COMMIT;
 
 SELECT *
 FROM perkins_participants_1920;
+
